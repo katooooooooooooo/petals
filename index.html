@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Petalk チャット</title>
+  <style>
+    body { font-family: system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif; line-height:1.6; padding:1rem; }
+    .controls{ display:flex; gap:.5rem; align-items:center; margin:.5rem 0 0; }
+    .msg{ position:relative; margin:6px 0; border-top:1px solid #eee; padding:12px 14px; white-space:pre-wrap; border-radius:12px; }
+    .system{ color:#555; font-style:italic; background:#f6f6f6; padding:8px 10px; border-radius:6px; }
+    #send[disabled]{ opacity:.6; cursor:not-allowed; }
+    .muted{ color:#666; font-size:.9em; }
+    /* 削除ボタン（各メッセージ右上） */
+    .msg .del-btn{
+      position:absolute; top:6px; right:8px; border:0; background:transparent; cursor:pointer;
+      color:#9aa0a6; font-size:14px; padding:2px 4px; border-radius:6px;
+    }
+    .msg .del-btn:hover{ color:#ef4444; background:rgba(239,68,68,.08); }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">🐾</div>
+    <h1>Petalk チャットへようこそ</h1>
+  </div>
+  <div id="status" class="muted">ログイン確認中...</div>
+  <nav style="margin:8px 0 16px">
+    <a href="pets.html">ペット情報</a>
+    <a href="auth.html">ログイン/新規登録</a>
+  </nav>
+
+  <div class="card">
+    <h2>ペットに関する質問</h2>
+    <div class="input-row">
+      <input type="text" id="message" placeholder="ペットの相談をしてみてね" />
+      <button class="btn" id="send">送信</button>
+    </div>
+
+    <div class="controls">
+      <span id="visibleHint" class="muted">表示: 最新10件</span>
+      <button class="btn secondary" id="toggleView">もっと見る</button>
+      <button class="btn secondary" id="clearLogs">履歴を全削除</button>
+    </div>
+
+    <div id="chat-log"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import {
+    getDatabase, ref, onValue, update, remove,
+    push, set, serverTimestamp, query, limitToLast
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ---- Firebase ----
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_Vt5U_OKXP1LOepSdsjpPUzs1FlKh3tE",
+    authDomain: "petalk-a70e1.firebaseapp.com",
+    databaseURL: "https://petalk-a70e1-default-rtdb.firebaseio.com",
+    projectId: "petalk-a70e1"
+  };
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getDatabase(app);
+
+  // ---- 状態管理 ----
+  let user = null;
+  let petInfoText = "（ペット情報がありません）";
+  let petsMap = {};
+  let recentTurns = [];     // AI用: 直近8メッセージ
+  let lastItemsCache = [];  // 表示用（id含む）
+  let showAll = false;      // false=10件, true=50件
+  const VISIBLE_MIN = 10, VISIBLE_MAX = 50;
+
+  // 🔸 表示用に末尾の UPDATE 行だけを除去
+  function stripUpdateFromText(text){
+    return text.replace(/UPDATE:\s*\{[\s\S]*\}\s*$/,'').trim();
+  }
+
+  // ===== 会話ログ 保存 =====
+  async function saveLog(role, text) {
+    if (!user) return;
+    try {
+      const logRef = push(ref(db, `users/${user.uid}/logs`));
+      await set(logRef, { role, text, createdAt: serverTimestamp() });
+    } catch (e) { console.error("[saveLog]", e); }
+  }
+
+  // ===== 個別削除 / 全削除 =====
+  async function deleteLog(logId) {
+    if (!user || !logId) return;
+    const ok = confirm("このメッセージを削除しますか？");
+    if (!ok) return;
+    try {
+      await remove(ref(db, `users/${user.uid}/logs/${logId}`));
+    } catch (e) {
+      console.error("[deleteLog]", e);
+      alert("削除に失敗しました。");
+    }
+  }
+
+  async function clearAllLogs() {
+    if (!user) return;
+    const ok = confirm("会話履歴をすべて削除します。よろしいですか？");
+    if (!ok) return;
+    try {
+      await remove(ref(db, `users/${user.uid}/logs`));
+    } catch (e) {
+      console.error("[clearAllLogs]", e);
+      alert("全削除に失敗しました。");
+    }
+  }
+
+  // ===== 会話ログ 購読 =====
+  function subscribeLogs() {
+    if (!user) return;
+    const qRef = query(ref(db, `users/${user.uid}/logs`), limitToLast(200));
+    onValue(qRef, (snap) => {
+      const items = [];
+      snap.forEach((child) => {
+        const v = child.val() || {};
+        const ts = typeof v.createdAt === "number"
+          ? v.createdAt
+          : (v.createdAt?.seconds ? v.createdAt.seconds * 1000 : 0);
+        items.push({ id: child.key, role: v.role, text: v.text ?? "", createdAt: ts });
+      });
+      items.sort((a,b)=>a.createdAt-b.createdAt);
+      lastItemsCache = items.slice(-VISIBLE_MAX);
+
+      const plain = lastItemsCache.filter(m => m.role === "user" || m.role === "assistant");
+      recentTurns = plain.slice(-8).map(m => ({ role:m.role, text:m.text }));
+
+      renderLog();
+    }, (err)=>console.error("[logs onValue]", err));
+  }
+
+  function renderLog() {
+    const chatLog = document.getElementById("chat-log");
+    chatLog.innerHTML = "";
+    const visibleCount = showAll ? Math.min(lastItemsCache.length, VISIBLE_MAX) : Math.min(lastItemsCache.length, VISIBLE_MIN);
+    const toShow = lastItemsCache.slice(-visibleCount);
+
+    for (const m of toShow) {
+      const who = m.role === "user" ? "🧍‍♂️" : m.role === "assistant" ? "🧠" : "ℹ️";
+      const div = document.createElement("div");
+      div.className = "msg" + (m.role === "system" ? " system" : "");
+      div.dataset.id = m.id;
+
+      // 削除ボタン
+      const del = document.createElement("button");
+      del.className = "del-btn";
+      del.title = "このメッセージを削除";
+      del.textContent = "🗑️";
+      del.addEventListener("click", () => deleteLog(m.id));
+
+      const span = document.createElement("span");
+      span.textContent = `${who}：`;
+
+      const textNode = document.createTextNode(m.text);
+
+      div.appendChild(del);
+      div.appendChild(span);
+      div.appendChild(textNode);
+      chatLog.appendChild(div);
+    }
+
+    document.getElementById("visibleHint").textContent =
+      `表示: 最新${visibleCount}件（全${lastItemsCache.length}件中）`;
+    document.getElementById("toggleView").textContent =
+      showAll ? "閉じる（10件にする）" : "もっと見る（最大50件）";
+  }
+
+  // ===== 表示用：ペット情報の文字列 =====
+  function toDisplayLine(p) {
+    const parts = [];
+    parts.push(`名前: ${p.name ?? "未登録"}`);
+    parts.push(`種類: ${p.species ?? p.type ?? "未登録"}`);
+    parts.push(`誕生日: ${p.birthday ?? "未登録"}`);
+    parts.push(`性別: ${p.gender ?? "未登録"}`);
+    parts.push(`年齢: ${p.age ?? "未登録"}`);
+    parts.push(`好きなもの: ${p.favorite ?? "未登録"}`);
+    parts.push(`体重: ${p.weight ?? "未登録"}`);
+
+    if (p.walk) {
+      parts.push(`散歩の頻度: ${p.walk}`);
+    } else {
+      const walkKeys = Object.keys(p).filter(k => /^walk/i.test(k));
+      if (walkKeys.length) {
+        for (const k of walkKeys) parts.push(`散歩の頻度（${k}）: ${p[k]}`);
+      } else {
+        parts.push(`散歩の頻度: 未登録`);
+      }
+    }
+    if (p.meal) {
+      parts.push(`ご飯の頻度: ${p.meal}`);
+    } else {
+      const mealKeys = Object.keys(p).filter(k => /^meal/i.test(k));
+      if (mealKeys.length) {
+        for (const k of mealKeys) parts.push(`ご飯（${k}）: ${p[k]}`);
+      } else {
+        parts.push(`ご飯の頻度: 未登録`);
+      }
+    }
+
+    parts.push(`性格: ${p.personality ?? "未登録"}`);
+    parts.push(`その他: ${p.other ?? "未登録"}`);
+    return parts.join("、");
+  }
+
+  // ===== ペット情報 購読 =====
+  function startPetsSubscription() {
+    const petsRef = ref(db, `users/${user.uid}/pets`);
+    onValue(petsRef, (snapshot) => {
+      petsMap = {};
+      if (!snapshot.exists()) {
+        petInfoText = "（ペット情報が見つかりません）";
+      } else {
+        snapshot.forEach((child) => { petsMap[child.key] = child.val(); });
+        const lines = Object.values(petsMap).map(p => toDisplayLine(p));
+        petInfoText = lines.join("\n");
+      }
+    });
+  }
+
+  // ===== リスト系マージ（favorite など） =====
+  function mergeListLike(existing, incoming) {
+    const toArray = (v) => {
+      if (Array.isArray(v)) return v;
+      if (v === undefined || v === null) return [];
+      return String(v).split(/[、，,／\/・;；~\s]+/).map(s=>s.trim()).filter(Boolean);
+    };
+    const ex = toArray(existing), inc = toArray(incoming);
+    const norm = (s)=>s.replace(/\s+/g,"").toLowerCase();
+    const seen = new Set(ex.map(norm));
+    const merged = [...ex];
+    for (const x of inc) { const k = norm(x); if (!seen.has(k)) { seen.add(k); merged.push(x); } }
+    return merged.join("、");
+  }
+
+  // ===== フィールド正規化（基本はそのまま保存） =====
+  function normalizeFields(updateFields, currentPet) {
+    const out = {};
+    const f = { ...updateFields };
+    const mapDirect = { favourite:"favorite", favorites:"favorite", likes:"favorite", weightKg:"weight", weightkg:"weight" };
+
+    for (const [rawKey, val] of Object.entries(f)) {
+      const key = mapDirect[rawKey] || rawKey;
+      if (key === "favorite") {
+        out.favorite = mergeListLike(currentPet?.favorite, val);
+      } else {
+        out[key] = val; // そのまま上書き
+      }
+    }
+    return out;
+  }
+
+  // ===== UPDATE 抽出 → 適用 =====
+  function extractUpdateFromText(text) {
+    const m = text.match(/UPDATE:\s*(\{[\s\S]*\})\s*$/);
+    if (!m) return null;
+    try {
+      const obj = JSON.parse(m[1]);
+      if (!obj || typeof obj !== "object" || !obj.fields) return null;
+      return obj;
+    } catch { return null; }
+  }
+
+  async function applyUpdate(updateObj) {
+    if (!user || !updateObj?.fields) return;
+
+    let targetId = updateObj.petId || null;
+    if (!targetId && updateObj.petName) {
+      targetId = Object.entries(petsMap).find(([id,p]) => p.name === updateObj.petName)?.[0] || null;
+    }
+    if (!targetId) targetId = Object.keys(petsMap)[0] || null;
+    if (!targetId) return;
+
+    const current = petsMap[targetId] || {};
+    const fields = normalizeFields(updateObj.fields, current);
+    if (!Object.keys(fields).length) return;
+
+    await update(ref(db, `users/${user.uid}/pets/${targetId}`), fields);
+    petsMap[targetId] = { ...current, ...fields }; // ローカル即時反映
+
+    const petName = petsMap[targetId]?.name ?? "不明なペット";
+    const updates = Object.entries(fields).map(([k,v]) => `${k} → 「${v}」`).join("、");
+    addSystemLog(`📘 ${petName} の情報を更新しました：${updates}`);
+  }
+
+  // ===== 送信 =====
+  document.getElementById("send").addEventListener("click", async () => {
+    const input = document.getElementById("message");
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
+
+    addLog("🧍‍♂️", userMessage);
+    input.value = "";
+    await saveLog("user", userMessage);
+
+    const guard = `
+あなたはペットケアのAIアシスタントです。
+- 登録されていない情報は一般論を織り交ぜて推測で回答するか、回答をできない旨を伝える。
+- 推測は「推測です」と明示して断定しない。
+- ユーザーが新しい事実を述べた場合は、返答の最後に
+  UPDATE: {"petName":"（対象名）","fields":{"favorite":"カニ"}}
+  の形式で1行だけ出力する。`.trim();
+
+    const fullPrompt = `
+${guard}
+
+【登録ペット情報】
+${petInfoText}
+
+【会話履歴】
+${buildHistoryText()}
+
+【ユーザーの質問】
+${userMessage}
+`.trim();
+
+    try {
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: fullPrompt })
+      });
+      const data = await res.json();
+      const reply = data.reply ?? JSON.stringify(data);
+
+      // 1) UPDATE 適用（data.update 優先、なければ本文の末尾から抽出）
+      const upd = data.update || extractUpdateFromText(reply);
+      if (upd) await applyUpdate(upd);
+
+      // 2) 画面＆保存用は UPDATE 行を消したテキストにする
+      const visibleReply = stripUpdateFromText(reply);
+
+      addLog("🧠", visibleReply);
+      await saveLog("assistant", visibleReply);
+
+      renderLog();
+    } catch (err) {
+      console.error("エラー:", err);
+      addLog("⚠️", "サーバーエラーが発生しました");
+      await saveLog("system", `error: ${String(err)}`);
+      renderLog();
+    }
+  });
+
+  function addLog(who, text) {
+    const log = document.getElementById("chat-log");
+    const div = document.createElement("div");
+    div.className = "msg";
+    div.innerHTML = `<button class="del-btn" title="このメッセージを削除">🗑️</button><span>${who}：</span>${text}`;
+    log.appendChild(div);
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+  function addSystemLog(text) {
+    const log = document.getElementById("chat-log");
+    const div = document.createElement("div");
+    div.className = "msg system";
+    div.textContent = text;
+    log.appendChild(div);
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  // ===== 表示切替 / 全削除ボタン =====
+  document.getElementById("toggleView").addEventListener("click", () => {
+    showAll = !showAll;
+    renderLog();
+  });
+  document.getElementById("clearLogs").addEventListener("click", clearAllLogs);
+
+  // 🔹 これが抜けていたのが送信不具合の原因
+  function buildHistoryText() {
+    if (!recentTurns.length) return "（直近の会話履歴はありません）";
+    return recentTurns.map(m => (m.role === "user" ? "ユーザー" : "アシスタント") + ": " + m.text).join("\n");
+  }
+
+  // ===== 認証後 =====
+  onAuthStateChanged(auth, (_user) => {
+    if (_user) {
+      user = _user;
+      document.getElementById("status").textContent = `🐾 ようこそ ${user.email} さん`;
+      subscribeLogs();
+      startPetsSubscription();
+    } else {
+      document.getElementById("status").textContent = "ログインしていません。";
+    }
+  });
+</script>
+</body>
+</html>

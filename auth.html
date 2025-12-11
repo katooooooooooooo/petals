@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="stylesheet" href="style.css" />
+  <title>Petalk - 認証</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; }
+    input { margin: 0.2em; padding: 0.4em; }
+    button { padding: 0.4em 1em; }
+  </style>
+</head>
+<body>
+  <h1>🔷 ログイン / 新規登録</h1>
+  <p><a href="/">← 戻る</a></p>
+
+  <h2>ログイン</h2>
+  <input id="login-email" type="email" placeholder="メールアドレス" />
+  <input id="login-password" type="password" placeholder="パスワード" />
+  <button id="login-btn">ログイン</button>
+
+  <h2>新規登録</h2>
+  <input id="signup-email" type="email" placeholder="メールアドレス" />
+  <input id="signup-password" type="password" placeholder="パスワード" />
+  <button id="signup-btn">新規登録</button>
+
+  <!-- Firebase CDN & 認証スクリプト -->
+  <script type="module">
+    // Firebase SDK（CDNからインポート）
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    // ✅ 自分のFirebase構成に置き換えて！
+    const firebaseConfig = {
+  apiKey: "AIzaSyD_Vt5U_OKXP1LOepSdsjpPUzs1FlKh3tE",
+  authDomain: "petalk-a70e1.firebaseapp.com",
+  projectId: "petalk-a70e1",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // ログイン処理
+    document.getElementById('login-btn').addEventListener('click', () => {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          alert("ログイン成功！");
+          location.href = "/index.html";
+        })
+        .catch((error) => {
+          alert("ログイン失敗：" + error.message);
+        });
+    });
+
+    // 新規登録処理
+    document.getElementById('signup-btn').addEventListener('click', () => {
+      const email = document.getElementById('signup-email').value;
+      const password = document.getElementById('signup-password').value;
+
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          alert("登録成功！");
+        })
+        .catch((error) => {
+          alert("登録失敗：" + error.message);
+        });
+    });
+  </script>
+</body>
+</html>

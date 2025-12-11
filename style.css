@@ -1,0 +1,92 @@
+/* ===== Petalk UI – Drop-in styles ===== */
+:root{
+  --bg: #f7f7fb;
+  --card: #ffffff;
+  --text: #1b1f23;
+  --muted: #667085;
+  --brand: #7c3aed;       /* 紫 */
+  --brand-weak: #ede9fe;
+  --ok: #10b981;          /* 緑 */
+  --warn: #f59e0b;        /* 黄 */
+  --danger: #ef4444;      /* 赤 */
+  --ring: rgba(124,58,237,.35);
+  --radius: 14px;
+  --shadow: 0 6px 24px rgba(16,24,40,.06), 0 2px 8px rgba(16,24,40,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0b0c10; --card:#111318; --text:#e6e7ea; --muted:#9aa0a6;
+    --brand-weak: rgba(124,58,237,.12); --ring: rgba(124,58,237,.55);
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+}
+
+/* layout */
+.container{max-width:960px; margin:24px auto; padding:0 16px}
+.header{
+  display:flex; align-items:center; gap:12px; margin-bottom:12px;
+}
+.header .logo{
+  width:36px; height:36px; display:grid; place-items:center; border-radius:10px;
+  background:var(--brand-weak); color:var(--brand); font-size:20px;
+}
+.header h1{font-size:24px; margin:0}
+
+nav a{
+  display:inline-block; padding:6px 10px; margin-right:6px; border-radius:8px;
+  color:var(--brand); text-decoration:none; background:var(--brand-weak);
+}
+nav a:hover{filter:brightness(1.05)}
+.muted{color:var(--muted)}
+
+/* card */
+.card{
+  background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:18px;
+}
+
+/* input row */
+.input-row{display:flex; gap:10px; align-items:center; margin-top:8px}
+.input-row input[type="text"]{
+  flex:1; padding:12px 14px; border:1px solid transparent; border-radius:12px;
+  background:color-mix(in oklab, var(--card) 85%, #fff 15%);
+  color:var(--text); outline:none;
+}
+.input-row input[type="text"]:focus{border-color:var(--ring); box-shadow:0 0 0 4px var(--ring)}
+.btn{
+  border:0; padding:10px 14px; border-radius:12px; font-weight:600; cursor:pointer;
+  background:var(--brand); color:#fff; box-shadow:0 4px 14px rgba(124,58,237,.25);
+}
+.btn:disabled{opacity:.6; cursor:not-allowed}
+.btn.secondary{background:transparent; color:var(--brand); border:1px solid var(--brand-weak)}
+.controls{display:flex; gap:8px; align-items:center; margin:8px 0 0}
+
+/* chat log */
+#chat-log{display:flex; flex-direction:column; gap:10px; margin-top:12px}
+.msg{
+  max-width:min(78%, 720px); padding:12px 14px; border-radius:16px; white-space:pre-wrap;
+  border:1px solid color-mix(in oklab, var(--card) 85%, #000 15%);
+}
+.msg.assistant{
+  background:var(--card); align-self:flex-start;
+}
+.msg.user{
+  background:linear-gradient(180deg, color-mix(in oklab, var(--brand-weak) 65%, #fff 35%), var(--brand-weak));
+  border-color:transparent; align-self:flex-end;
+}
+.msg.system{
+  align-self:center; background:transparent; border:0; color:var(--muted); font-style:italic;
+}
+.msg > .who{display:block; font-size:.85em; color:var(--muted); margin-bottom:2px}
+
+/* section titles */
+h2{margin:18px 0 8px; font-size:18px}
+
+/* small utilities */
+.badge{display:inline-block; padding:2px 8px; border-radius:999px; background:var(--brand-weak); color:var(--brand); font-weight:600}

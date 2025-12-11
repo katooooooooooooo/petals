@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <!-- head に追加 -->
+<link rel="stylesheet" href="style.css" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ペット登録フォーム</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; line-height:1.6; }
+    label { display:inline-block; width:9em; }
+    input, textarea { margin:4px 0; }
+    #save[disabled] { opacity:.6; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+  <h1>ペット登録フォーム</h1>
+  <div id="userStatus">ログイン確認中...</div>
+
+  <form id="petForm">
+    <label>名前:</label><input type="text" name="name" required><br/>
+    <label>種類:</label><input type="text" name="species" required><br/>
+    <label>誕生日（月日）:</label><input type="text" name="birthday" placeholder="例: 5/10"><br/>
+    <label>性別:</label><input type="text" name="gender"><br/>
+    <label>年齢:</label><input type="number" name="age"><br/>
+    <label>好きなもの:</label><input type="text" name="favorite"><br/>
+    <label>体重(kg):</label><input type="number" name="weight" step="0.1"><br/>
+    <label>散歩の頻度:</label><input type="text" name="walk"><br/>
+    <label>ご飯の頻度:</label><input type="text" name="meal"><br/>
+    <label>性格:</label><textarea name="personality"></textarea><br/>
+    <label>その他:</label><textarea name="other"></textarea><br/>
+    <button id="save" type="submit">登録</button>
+    <span id="saving" style="display:none">保存中...</span>
+  </form>
+
+  <hr/>
+  <h2>登録済みのペット一覧</h2>
+  <ul id="petList"></ul>
+
+  <p><a href="index.html">← トップへ戻る</a></p>
+
+  <script type="module" src="./pets.js"></script>
+</body>
+</html>

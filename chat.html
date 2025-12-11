@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Petalk チャット</title>
+  <style>
+    #chat-log {
+      border-top: 1px solid #ccc;
+      margin-top: 1em;
+      padding-top: 1em;
+    }
+    .msg {
+      margin-bottom: 0.5em;
+    }
+    .msg span {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐾 Petalk チャットへようこそ</h1>
+  <p id="status">ログイン確認中...</p>
+
+  <!-- 🔽 ページ遷移リンク -->
+  <nav>
+    <a href="mypage.html">マイページへ</a> |
+    <a href="settings.html">設定</a>
+  </nav>
+
+  <h2>💬 ペットに関する質問</h2>
+  <input id="message" type="text" placeholder="ペットの相談をしてみて" />
+  <button id="send">送信</button>
+
+  <!-- 🔽 チャットログ -->
+  <div id="chat-log"></div>
+
+  <script type="module" src="chat.js"></script>
+</body>
+</html>
