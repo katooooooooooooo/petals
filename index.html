@@ -324,11 +324,14 @@ ${userMessage}
 `.trim();
 
     try {
-      const res = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: fullPrompt })
-      });
+const API_URL = "https://あなたのURL.onrender.com/chat";
+
+const res = await fetch(API_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ message: fullPrompt }),
+});
+);
       const data = await res.json();
       const reply = data.reply ?? JSON.stringify(data);
 
