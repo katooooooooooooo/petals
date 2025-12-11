@@ -49,7 +49,7 @@
       signInWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
           alert("ログイン成功！");
-          location.href = "index.html";
+          location.href = "petalk/index.html";
         })
         .catch((error) => {
           alert("ログイン失敗：" + error.message);
