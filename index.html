@@ -11,7 +11,6 @@
     .system{ color:#555; font-style:italic; background:#f6f6f6; padding:8px 10px; border-radius:6px; }
     #send[disabled]{ opacity:.6; cursor:not-allowed; }
     .muted{ color:#666; font-size:.9em; }
-    /* 削除ボタン（各メッセージ右上） */
     .msg .del-btn{
       position:absolute; top:6px; right:8px; border:0; background:transparent; cursor:pointer;
       color:#9aa0a6; font-size:14px; padding:2px 4px; border-radius:6px;
@@ -151,7 +150,6 @@
       div.className = "msg" + (m.role === "system" ? " system" : "");
       div.dataset.id = m.id;
 
-      // 削除ボタン
       const del = document.createElement("button");
       del.className = "del-btn";
       del.title = "このメッセージを削除";
@@ -242,7 +240,7 @@
     return merged.join("、");
   }
 
-  // ===== フィールド正規化（基本はそのまま保存） =====
+  // ===== フィールド正規化 =====
   function normalizeFields(updateFields, currentPet) {
     const out = {};
     const f = { ...updateFields };
@@ -253,7 +251,7 @@
       if (key === "favorite") {
         out.favorite = mergeListLike(currentPet?.favorite, val);
       } else {
-        out[key] = val; // そのまま上書き
+        out[key] = val;
       }
     }
     return out;
@@ -285,7 +283,7 @@
     if (!Object.keys(fields).length) return;
 
     await update(ref(db, `users/${user.uid}/pets/${targetId}`), fields);
-    petsMap[targetId] = { ...current, ...fields }; // ローカル即時反映
+    petsMap[targetId] = { ...current, ...fields };
 
     const petName = petsMap[targetId]?.name ?? "不明なペット";
     const updates = Object.entries(fields).map(([k,v]) => `${k} → 「${v}」`).join("、");
@@ -335,11 +333,9 @@ ${userMessage}
       const data = await res.json();
       const reply = data.reply ?? JSON.stringify(data);
 
-      // 1) UPDATE 適用（data.update 優先、なければ本文の末尾から抽出）
       const upd = data.update || extractUpdateFromText(reply);
       if (upd) await applyUpdate(upd);
 
-      // 2) 画面＆保存用は UPDATE 行を消したテキストにする
       const visibleReply = stripUpdateFromText(reply);
 
       addLog("🧠", visibleReply);
@@ -352,7 +348,7 @@ ${userMessage}
       await saveLog("system", `error: ${String(err)}`);
       renderLog();
     }
-  });  // ← ★これが抜けていた！
+  });
 
   function addLog(who, text) {
     const log = document.getElementById("chat-log");
@@ -379,7 +375,6 @@ ${userMessage}
   });
   document.getElementById("clearLogs").addEventListener("click", clearAllLogs);
 
-  // 🔹 これが抜けていたのが送信不具合の原因
   function buildHistoryText() {
     if (!recentTurns.length) return "（直近の会話履歴はありません）";
     return recentTurns
@@ -398,3 +393,6 @@ ${userMessage}
       document.getElementById("status").textContent = "ログインしていません。";
     }
   });
+</script>
+</body>
+</html>
