@@ -292,7 +292,7 @@
     addSystemLog(`📘 ${petName} の情報を更新しました：${updates}`);
   }
 
-  // ===== 送信 =====
+   // ===== 送信 =====
   document.getElementById("send").addEventListener("click", async () => {
     const input = document.getElementById("message");
     const userMessage = input.value.trim();
@@ -326,7 +326,6 @@ ${userMessage}
     try {
       const API_URL = "https://petals-backend.onrender.com/chat";
 
-
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -353,7 +352,8 @@ ${userMessage}
       await saveLog("system", `error: ${String(err)}`);
       renderLog();
     }
-    
+  });  // ← ★これが抜けていた！
+
   function addLog(who, text) {
     const log = document.getElementById("chat-log");
     const div = document.createElement("div");
@@ -362,6 +362,7 @@ ${userMessage}
     log.appendChild(div);
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }
+
   function addSystemLog(text) {
     const log = document.getElementById("chat-log");
     const div = document.createElement("div");
@@ -381,10 +382,11 @@ ${userMessage}
   // 🔹 これが抜けていたのが送信不具合の原因
   function buildHistoryText() {
     if (!recentTurns.length) return "（直近の会話履歴はありません）";
-    return recentTurns.map(m => (m.role === "user" ? "ユーザー" : "アシスタント") + ": " + m.text).join("\n");
+    return recentTurns
+      .map(m => (m.role === "user" ? "ユーザー" : "アシスタント") + ": " + m.text)
+      .join("\n");
   }
 
-  
   // ===== 認証後 =====
   onAuthStateChanged(auth, (_user) => {
     if (_user) {
@@ -396,6 +398,3 @@ ${userMessage}
       document.getElementById("status").textContent = "ログインしていません。";
     }
   });
-</script>
-</body>
-</html>
