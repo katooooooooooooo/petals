@@ -384,6 +384,7 @@ ${userMessage}
     return recentTurns.map(m => (m.role === "user" ? "ユーザー" : "アシスタント") + ": " + m.text).join("\n");
   }
 
+  
   // ===== 認証後 =====
   onAuthStateChanged(auth, (_user) => {
     if (_user) {
